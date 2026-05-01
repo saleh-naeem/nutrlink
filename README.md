@@ -20,7 +20,7 @@ The complete backend REST API for the NutriLink platform - a comprehensive nutri
 - [Middleware](#middleware)
 - [Error Handling](#error-handling)
 
-## 🏗 Architecture Overview
+## Architecture Overview
 
 NutriLink Backend follows a **RESTful API architecture** with:
 - **MVC Pattern**: Controllers handle business logic, models define data schemas
@@ -66,7 +66,6 @@ Response (JSON)
 
 ### AI & External Services
 - **OpenAI API**: GPT-4.1-mini for nutrition chatbot
-- **Streamable**: Efficient text streaming (if used)
 
 ### Utilities
 - **dotenv**: Environment variable management
@@ -155,7 +154,7 @@ nutrilink-backend/
 │   ├── DietPlan.js           # Meal plans
 │   ├── Ai.js                 # Chat conversations
 │   ├── Progress.js           # Daily logs
-│   └── Goal.js               # Customer goals (if separate)
+│   └── Goal.js               # Customer goals
 │
 ├── route/
 │   ├── auth.js               # Auth endpoints
@@ -170,10 +169,7 @@ nutrilink-backend/
 │   ├── calculator.js         # Calorie calculator
 │   └── goal.js               # Goal management
 │
-├── utils/                    # Helper functions (if any)
-│   └── cloudinary.js         # Cloudinary upload helpers
-│
-├── .env                      # Environment variables (DO NOT COMMIT)
+├── .env                      # Environment variables 
 ├── .gitignore                # Git ignore file
 ├── app.js                    # Express app setup
 ├── package.json              # Dependencies
@@ -188,14 +184,14 @@ nutrilink-backend/
 - **MongoDB** account (MongoDB Atlas recommended)
 - **Cloudinary** account for image storage
 - **OpenAI** API key for chatbot
-- **Google Cloud** project with OAuth credentials (optional)
+- **Google Cloud** project with OAuth credentials 
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/nutrilink-backend.git
-   cd nutrilink-backend
+   git clone https://github.com/saleh-naeem/nutrilink.git
+   cd nutrilink
    ```
 
 2. **Install dependencies**
@@ -232,12 +228,7 @@ nutrilink-backend/
 
 4. **Start the development server**
    ```bash
-   npm run dev
-   ```
-   
-   Or for production:
-   ```bash
-   npm start
+   node app
    ```
 
 5. **Verify the server is running**
@@ -1509,73 +1500,11 @@ Authorization: Bearer <nutritionist_token>
 
 ---
 
-## 🚀 Deployment
-
-### Deployment Checklist
-
-- [ ] Set `NODE_ENV=production` in environment variables
-- [ ] Use strong, unique JWT secret
-- [ ] Whitelist specific IP addresses in MongoDB Atlas
-- [ ] Enable Cloudinary security features
-- [ ] Set up error logging (e.g., Sentry)
-- [ ] Configure CORS for production domain
-- [ ] Enable HTTPS/SSL
-- [ ] Set up monitoring (e.g., PM2, New Relic)
-- [ ] Configure rate limiting
-- [ ] Set up automated backups for MongoDB
-
-### Recommended Platforms
-
-**Backend Hosting:**
-- **Railway.app**: Easy deployment, auto-scaling
-- **Render**: Free tier available, simple setup
-- **Heroku**: Reliable, well-documented
-- **DigitalOcean App Platform**: Affordable, flexible
-- **AWS Elastic Beanstalk**: Enterprise-grade
-
-**Database:**
-- **MongoDB Atlas**: Managed MongoDB, free tier available
-
-**Image Storage:**
-- **Cloudinary**: Free tier includes 25GB storage
-
-### Environment Variables for Production
-
-```env
-NODE_ENV=production
-PORT=5000
-MONGO_URI=mongodb+srv://...
-JWT_SECRET=production_secret_key
-CLOUDINARY_CLOUD_NAME=...
-CLOUDINARY_API_KEY=...
-CLOUDINARY_API_SECRET=...
-OPENAI_API_KEY=...
-```
-
-### PM2 Process Manager
-
-```bash
-# Install PM2
-npm install -g pm2
-
-# Start app with PM2
-pm2 start app.js --name nutrilink-api
-
-# Auto-restart on system reboot
-pm2 startup
-pm2 save
-
-# Monitor logs
-pm2 logs nutrilink-api
-```
-
----
-
 ## 🧪 Testing
 
 ### Manual Testing
 
-**Test User Accounts** (from uploaded README):
+**Test User Accounts** :
 
 **Customers:**
 ```json
@@ -1648,42 +1577,5 @@ NutriLink API
 ```
 
 ---
-
-## 📝 Best Practices
-
-### Security
-- ✅ Never commit `.env` files
-- ✅ Use strong JWT secrets (min 32 characters)
-- ✅ Hash passwords with bcrypt (never plain text)
-- ✅ Validate all user inputs
-- ✅ Sanitize data before database queries
-- ✅ Use HTTPS in production
-- ✅ Implement rate limiting for API endpoints
-- ✅ Keep dependencies updated
-
-### Code Quality
-- ✅ Use async/await with try-catch
-- ✅ Use express-async-handler for cleaner error handling
-- ✅ Validate request bodies with middleware
-- ✅ Keep controllers thin, models fat
-- ✅ Use meaningful variable and function names
-- ✅ Comment complex business logic
-
-### Database
-- ✅ Index frequently queried fields
-- ✅ Use lean() for read-only queries
-- ✅ Limit query results with pagination
-- ✅ Use select() to exclude sensitive fields
-- ✅ Populate references only when needed
-
----
-
-## 🐛 Known Issues
-
-1. **OpenAI Rate Limits**: Heavy AI usage may hit OpenAI rate limits
-2. **Cloudinary Quota**: Free tier has monthly upload limits
-3. **Concurrent Bookings**: No locking mechanism for simultaneous slot bookings
-4. **Date Timezone**: All dates stored in UTC, may need timezone handling
-
----
+-
 
