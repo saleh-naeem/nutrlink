@@ -251,6 +251,7 @@ const getAllAppointments = asyncHandler(async (req, res) => {
     appointments
   });
 });
+
 module.exports = {
   createSlot,
   deleteSlot,
@@ -261,5 +262,5 @@ module.exports = {
   cancelAppointment,
   markCompleted,
   rescheduleAppointment,
-  getAllAppointments
+  getAllAppointments,
 }

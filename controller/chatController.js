@@ -2,6 +2,7 @@ const asynchandler = require('express-async-handler')
 const Conversation = require('../model/Conversation')
 const Message = require('../model/Message')
 const User = require('../model/User')
+const { getIO } = require('../socketInstance')
 
 const sendMessage = asynchandler(async (req, res) => {
   const { recipientId, text, conversationId } = req.body
@@ -88,15 +89,31 @@ const getConversations = asynchandler(async (req, res) => {
 const getMessages = asynchandler(async (req, res) => {
   const { conversationId } = req.params
 
-  await Promise.all([
-    Message.updateMany(
-      { conversationId, sender: { $ne: req.user.id }, seen: false },
-      { $set: { seen: true } }
-    ),
-    Conversation.findByIdAndUpdate(conversationId, {
-      $set: { "lastMessage.seen": true }
-    })
-  ])
+  // Get count of messages that will be marked as seen (before updating)
+  const result = await Message.updateMany(
+    { conversationId, sender: { $ne: req.user.id }, seen: false },
+    { $set: { seen: true } }
+  );
+
+  await Conversation.findByIdAndUpdate(conversationId, {
+    $set: { "lastMessage.seen": true }
+  })
+
+  // Calculate remaining unread messages for this user across all conversations
+  const conversations = await Conversation.find({ participants: req.user.id }).select('_id');
+  const remainingUnreadCount = await Message.countDocuments({
+    conversationId: { $in: conversations.map(c => c._id) },
+    sender: { $ne: req.user.id },
+    seen: false
+  });
+
+// Emit socket event to notify the user about the updated unread count
+  try {
+    const io = getIO();
+    io.to(req.user.id).emit("unread_count_reset", { count: remainingUnreadCount });
+  } catch (err) {
+    console.error('Error emitting unread_count_reset:', err);
+  }
 
   const messages = await Message.find({ conversationId })
     .sort({ createdAt: 1 })

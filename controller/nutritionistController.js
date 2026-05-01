@@ -5,152 +5,155 @@ const Customer = require('../model/Customer')
 
 
 const createProfile = asyncHandler(async (req, res) => {
-    const { specialization, bio, yearsOfExperience, clientServed, price, languages } = req.body;
+  const { specialization, bio, yearsOfExperience, clientServed, price, languages } = req.body;
 
 
 
-    const existingProfile = await Nutritionist.findOne({ user: req.user.id })
-    if (existingProfile) {
-        res.status(400)
-        throw new Error('Profile already exists for this user')
-    }
+  const existingProfile = await Nutritionist.findOne({ user: req.user.id })
+  if (existingProfile) {
+    res.status(400)
+    throw new Error('Profile already exists for this user')
+  }
 
-    const profile = await Nutritionist.create({
-        user: req.user.id,
-        specialization,
-        bio,
-        yearsOfExperience,
-        clientServed,
-        cardBio: req.body.cardBio || bio.substring(0, 150),
-        price,
-        languages
-    });
+  const profile = await Nutritionist.create({
+    user: req.user.id,
+    specialization,
+    bio,
+    yearsOfExperience,
+    clientServed,
+    cardBio: req.body.cardBio || bio.substring(0, 150),
+    price,
+    languages
+  });
 
-    res.status(201).json(profile)
+  res.status(201).json(profile)
 });
 
 const getProfile = asyncHandler(async (req, res) => {
-    const profile = await Nutritionist.findOne({ user: req.user.id })
-        .select('user specialization bio yearsOfExperience clientServed rating reviewCount languages price ')
-        .populate('user', ['username', 'email'])
+  const profile = await Nutritionist.findOne({ user: req.user.id })
+    .select('user specialization bio yearsOfExperience clientServed rating reviewCount languages price ')
+    .populate('user', ['username', 'email', 'profilePic'])
 
-    if (!profile) {
-        res.status(404)
-        throw new Error('Profile not found')
-    }
+  if (!profile) {
+    res.status(404)
+    throw new Error('Profile not found')
+  }
 
-    res.json(profile)
+  res.json(profile)
 });
 
 const getProfileById = asyncHandler(async (req, res) => {
-    const profile = await Nutritionist.findOne({ user: req.params.userId }).populate('user', ['username', 'email', 'profilePic'])
+  const profile = await Nutritionist.findOne({ user: req.params.userId }).populate('user', ['username', 'email', 'profilePic'])
 
-    if (!profile) {
-        res.status(404);
-        throw new Error('Profile not found');
-    }
+  if (!profile) {
+    res.status(404);
+    throw new Error('Profile not found');
+  }
 
-    res.json(profile);
+  res.json(profile);
 })
 
 const updateProfile = asyncHandler(async (req, res) => {
-    const updatedProfile = await Nutritionist.findOneAndUpdate(
-        { user: req.user.id },
-        req.body,
-        { new: true, runValidators: true }
-    );
+  const updatedProfile = await Nutritionist.findOneAndUpdate(
+    { user: req.user.id },
+    req.body,
+    { new: true, runValidators: true }
+  );
 
-    if (!updatedProfile) {
-        res.status(404)
-        throw new Error('Profile not found')
-    }
+  if (!updatedProfile) {
+    res.status(404)
+    throw new Error('Profile not found')
+  }
 
-    res.json(updatedProfile)
+  res.json(updatedProfile)
 })
 
 const getAllNutritionist = asyncHandler(async (req, res) => {
-    const nutritionists = await Nutritionist.find().populate('user', ['username', 'email'])
+  const nutritionists = await Nutritionist.find().populate('user', ['username', 'email'])
 
-    if (!nutritionists || nutritionists.length === 0) {
-        res.status(404)
-        throw new Error('No nutritionists found')
-    }
+  if (!nutritionists || nutritionists.length === 0) {
+    res.status(404)
+    throw new Error('No nutritionists found')
+  }
 
-    res.json({
-        count: nutritionists.length,
-        nutritionists
-    })
+  res.json({
+    count: nutritionists.length,
+    nutritionists
+  })
 })
 
 const getFilteredCards = asyncHandler(async (req, res) => {
-    const limit = parseInt(req.query.limit) || 0;
+  const limit = parseInt(req.query.limit) || 0;
 
-    const { specialization, languages, maxPrice, minRating, yearsOfExperience, sortBy } = req.query
-    let queryFilter = {}
+  const { specialization, languages, maxPrice, minRating, yearsOfExperience, sortBy } = req.query
+  let queryFilter = {}
 
-    if (specialization) queryFilter.specialization = { $in: Array.isArray(specialization) ? specialization : [specialization] }
-    if (languages) queryFilter.languages = { $in: Array.isArray(languages) ? languages : [languages] }
-    if (maxPrice) queryFilter.price = { $lte: parseFloat(maxPrice) }
-    if (minRating) queryFilter.rating = { $gte: parseFloat(minRating) }
-    if (yearsOfExperience) queryFilter.yearsOfExperience = { $gte: parseInt(yearsOfExperience) }
+  if (specialization) queryFilter.specialization = { $in: Array.isArray(specialization) ? specialization : [specialization] }
+  if (languages) queryFilter.languages = { $in: Array.isArray(languages) ? languages : [languages] }
+  if (maxPrice) queryFilter.price = { $lte: parseFloat(maxPrice) }
+  if (minRating) queryFilter.rating = { $gte: parseFloat(minRating) }
+  if (yearsOfExperience) queryFilter.yearsOfExperience = { $gte: parseInt(yearsOfExperience) }
 
 
-    const sortMap = {
-        'price': { price: 1 },
-        'reviewCount': { reviewCount: -1 }
-    };
+  const sortMap = {
+    'price': { price: 1 },
+    'reviewCount': { reviewCount: -1 }
+  };
 
-    const sortOptions = sortMap[sortBy] || { rating: -1 };
+  const sortOptions = sortMap[sortBy] || { rating: -1 };
 
-    // 1. Find all unique nutritionist IDs that have at least one 'available' slot
-    const availableNutritionistIds = await Appointment.find({ status: 'available' }).distinct('nutritionistId');
-    queryFilter.user = { $in: availableNutritionistIds };
+  // 1. Find all unique nutritionist IDs that have at least one 'available' slot
+  const availableNutritionistIds = await Appointment.find({ status: 'available' }).distinct('nutritionistId');
+  queryFilter.user = { $in: availableNutritionistIds };
 
-    const cards = await Nutritionist.find(queryFilter)
-        .populate('user', ['username', 'profilePic'])
-        .select('specialization cardBio rating reviewCount price languages yearsOfExperience')
-        .sort(sortOptions)
-        .limit(limit)
+  const cards = await Nutritionist.find(queryFilter)
+    .populate('user', ['username', 'profilePic'])
+    .select('specialization cardBio rating reviewCount price languages yearsOfExperience')
+    .sort(sortOptions)
+    .limit(limit)
 
-    res.json({ count: cards.length, cards })
+  res.json({ count: cards.length, cards })
 })
 
 const getRecommendedForUser = asyncHandler(async (req, res) => {
-    const customer = await Customer.findOne({ user: req.user.id })
+  const customer = await Customer.findOne({ user: req.user.id })
 
-    const activeGoals = customer?.goals?.filter(goal => goal.status === 'pending') || []
-    const userLanguages = customer?.languages || []
+  if (!customer || !customer.primaryGoal)
+    return res.json([])
 
-    if (activeGoals.length === 0)
-        return res.json([])
+  const primaryGoal = customer.primaryGoal
+  const userLanguages = customer.languages || []
 
-    const goalKeywords = activeGoals.map(goal => goal.data)
+  const availableNutritionistIds = await Appointment.find({ status: 'available' }).distinct('nutritionistId');
 
-    const recommended = await Nutritionist.find({
-        $and: [
-            { specialization: { $in: goalKeywords } },
-            { languages: { $in: userLanguages } }
-        ]
+  let recommended = await Nutritionist.find({
+    $and: [
+      { specialization: primaryGoal },
+      { languages: { $in: userLanguages } },
+      { user: { $in: availableNutritionistIds } }
+    ]
+  })
+    .populate('user', ['username', 'profilePic'])
+    .select('specialization cardBio rating reviewCount price languages')
+    .sort({ rating: -1 })
+    .limit(10)
+    .lean();
+
+  if (recommended.length === 0) {
+    const goalOnlyMatch = await Nutritionist.find({
+      specialization: primaryGoal,
+      user: { $in: availableNutritionistIds }
     })
-        .populate('user', ['username', 'profilePic'])
-        .select('specialization cardBio rating reviewCount price languages')
-        .sort({ rating: -1 })
-        .limit(10)
+      .populate('user', ['username', 'profilePic'])
+      .select('specialization cardBio rating reviewCount price languages')
+      .sort({ rating: -1 })
+      .limit(10)
+      .lean();
 
+    return res.json(goalOnlyMatch);
+  }
 
-    if (recommended.length === 0) {
-        const goalOnlyMatch = await Nutritionist.find({
-            specialization: { $in: goalKeywords }
-        })
-            .populate('user', ['username', 'profilePic'])
-            .sort({ rating: -1 })
-            .limit(10)
-        return res.json(goalOnlyMatch)
-    }
-
-
-
-    res.json(recommended);
+  res.json(recommended);
 })
 
 

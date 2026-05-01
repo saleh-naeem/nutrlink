@@ -14,6 +14,12 @@ const customerProfileSchema = new mongoose.Schema({
     currentWeight: Number, // in kg
     targetWeight: Number,
     allergies: [String],
+    primaryGoal: {
+        type: String,
+        enum: ['Weight Loss', 'General Health', 'Muscle Building', 'Sports Nutrition', 'Clinical Nutrition',
+            'Diabetic Diet', 'Pregnancy Nutrition', 'Vegan Nutrition'],
+        required: false
+    },
     goals: [{
         data: { type: String },
         status: {

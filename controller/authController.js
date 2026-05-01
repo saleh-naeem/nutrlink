@@ -44,12 +44,9 @@ const loginSchema = Joi.object({
 // --- HELPER ---
 /**
  * Upload a file buffer to Cloudinary and return the secure URL.
- * @param {Buffer} buffer  – file buffer from multer memoryStorage
- * @param {string} folder  – Cloudinary folder path
  */
 const uploadToCloudinary = (buffer, folder) => {
     return new Promise((resolve, reject) => {
-        // Check if Cloudinary is configured
         if (!process.env.CLOUDINARY_API_KEY) {
             return reject(new Error('Cloudinary not configured. Check your .env file.'));
         }
@@ -71,8 +68,6 @@ const uploadToCloudinary = (buffer, folder) => {
 // --- CONTROLLER FUNCTIONS ---
 
 // @desc    Register a new user
-//          Nutritionists must upload a credential image (multipart/form-data).
-//          Customers are auto-approved; nutritionists start as isApproved: false.
 // @route   POST /api/auth/register
 const registerUser = asyncHandler(async (req, res) => {
     const { error } = registerSchema.validate(req.body);
@@ -80,7 +75,6 @@ const registerUser = asyncHandler(async (req, res) => {
 
     const { username, email, password, role } = req.body;
 
-    // Nutritionists must supply a credential image
     if (role === 'nutritionist' && !req.file) {
         res.status(400);
         throw new Error('Nutritionists must upload a credential image.');
@@ -99,7 +93,6 @@ const registerUser = asyncHandler(async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Upload credential image to Cloudinary for nutritionists
     let credentialImage = null;
     if (role === 'nutritionist') {
         try {
@@ -111,13 +104,14 @@ const registerUser = asyncHandler(async (req, res) => {
         } catch (uploadError) {
             console.error('❌ Cloudinary upload failed:', uploadError);
             res.status(500);
-            throw new Error('Failed to upload credential image. Please check Cloudinary configuration.');
+            throw new Error('Failed to upload credential image.');
         }
     }
 
-    // Customers are immediately approved; nutritionists wait for admin review
     const isApproved = role === 'customer';
 
+    // FIX: Only include credentialImage. 
+    // We EXCLUDE profilePic so Mongoose uses the Schema default.
     const user = await User.create({
         username,
         email,
@@ -128,8 +122,6 @@ const registerUser = asyncHandler(async (req, res) => {
     });
 
     if (user) {
-        // Return a token for customers so they can access the app right away.
-        // Nutritionists get a token too, but protected routes will check isApproved.
         const token = jwt.sign(
             { id: user._id, role: user.role, isadmin: user.isadmin },
             process.env.JWT_SECRET,
@@ -154,7 +146,6 @@ const registerUser = asyncHandler(async (req, res) => {
 // @desc    Login user
 // @route   POST /api/auth/login
 const loginUser = asyncHandler(async (req, res) => {
-    // 1. Validate against the new schema (identifier + password)
     const { error } = loginSchema.validate(req.body);
     if (error) {
         res.status(400);
@@ -163,7 +154,6 @@ const loginUser = asyncHandler(async (req, res) => {
 
     const { identifier, password } = req.body;
 
-    // 2. Search using the new identifier variable
     const user = await User.findOne({
         $or: [
             { email: identifier },
@@ -171,7 +161,6 @@ const loginUser = asyncHandler(async (req, res) => {
         ]
     });
 
-    // 3. Compare password and handle login
     if (user && (await bcrypt.compare(password, user.password))) {
         if (user.role === 'nutritionist' && !user.isApproved) {
             res.status(403);
@@ -196,7 +185,6 @@ const loginUser = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/google
 const googleLogin = asyncHandler(async (req, res) => {
     const { token, role } = req.body;
-
     if (!token) { res.status(400); throw new Error('Google token is missing'); }
 
     const ticket = await client.verifyIdToken({
@@ -208,32 +196,33 @@ const googleLogin = asyncHandler(async (req, res) => {
     let user = await User.findOne({ email });
 
     if (user) {
-        // UPDATE existing user with fresh Google data
-        user.profilePic = picture;
+        // Only update if picture exists to avoid nulling the existing one
+        if (picture) user.profilePic = picture;
         user.username = name.replace(/\s+/g, '').toLowerCase();
         user.lastSeen = new Date();
         await user.save();
-    }
-
-    if (!user) {
+    } else {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(Math.random().toString(36), salt);
-
-        // Google-registered nutritionists still need manual approval;
-        // they must later upload credentials via a dedicated endpoint.
         const isApproved = (role || 'customer') === 'customer';
 
-        user = await User.create({
+        // FIX: Build userData object conditionally
+        const userData = {
             username: name.replace(/\s+/g, '').toLowerCase() + Math.floor(Math.random() * 1000),
             email,
             password: hashedPassword,
             role: role || 'customer',
-            profilePic: picture,
             isApproved,
-        });
+        };
+
+        // Only add profilePic if Google actually provided one
+        if (picture) {
+            userData.profilePic = picture;
+        }
+
+        user = await User.create(userData);
     }
 
-    // Block unapproved nutritionists
     if (user.role === 'nutritionist' && !user.isApproved) {
         res.status(403);
         throw new Error('Your account is pending admin approval.');

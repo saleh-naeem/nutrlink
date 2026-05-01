@@ -14,7 +14,8 @@ const {
     cancelAppointment,
     markCompleted,
     rescheduleAppointment,
-    getAllAppointments
+    getAllAppointments,
+    cleanupPastAppointments
 } = require('../controller/appointmentController');
 
 
@@ -41,6 +42,7 @@ router.get('/:nutritionistId', getAvailableSlots)
 
 // ADMIN ROUTE
 router.get('/admin/all', authToken, isadmin, getAllAppointments);
+
 
 
 module.exports = router;
