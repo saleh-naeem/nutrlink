@@ -187,18 +187,44 @@ const googleLogin = asyncHandler(async (req, res) => {
     const { token, role } = req.body;
     if (!token) { res.status(400); throw new Error('Google token is missing'); }
 
+    // First verify the ID token
     const ticket = await client.verifyIdToken({
         idToken: token,
         audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const { email, name, picture } = ticket.getPayload();
+    const payload = ticket.getPayload();
+    const { email, name } = payload;
+    
+    // Try to get profile picture - make a separate API call to userinfo endpoint
+    let picture = payload.picture;
+    
+    // If picture is not in the ID token, try to fetch it from userinfo endpoint
+    if (!picture) {
+        try {
+            const userInfoResponse = await fetch(
+                `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${token}`,
+                { method: 'GET' }
+            );
+            const userInfo = await userInfoResponse.json();
+            picture = userInfo.picture;
+        } catch (fetchError) {
+            console.warn('Could not fetch userinfo picture:', fetchError.message);
+        }
+    }
+
     let user = await User.findOne({ email });
 
     if (user) {
-        // Only update if picture exists to avoid nulling the existing one
-        if (picture) user.profilePic = picture;
-        user.username = name.replace(/\s+/g, '').toLowerCase();
+        // Always update the picture if we got one from Google
+        // This ensures new Google profile pictures are saved
+        if (picture) {
+            user.profilePic = picture;
+        }
+        // Also update username if it changed
+        if (name) {
+            user.username = name.replace(/\s+/g, '').toLowerCase();
+        }
         user.lastSeen = new Date();
         await user.save();
     } else {
@@ -206,16 +232,17 @@ const googleLogin = asyncHandler(async (req, res) => {
         const hashedPassword = await bcrypt.hash(Math.random().toString(36), salt);
         const isApproved = (role || 'customer') === 'customer';
 
-        // FIX: Build userData object conditionally
         const userData = {
-            username: name.replace(/\s+/g, '').toLowerCase() + Math.floor(Math.random() * 1000),
+            username: name 
+                ? name.replace(/\s+/g, '').toLowerCase() + Math.floor(Math.random() * 1000)
+                : email.split('@')[0],
             email,
             password: hashedPassword,
             role: role || 'customer',
             isApproved,
         };
 
-        // Only add profilePic if Google actually provided one
+        // Add profilePic if we got one from Google
         if (picture) {
             userData.profilePic = picture;
         }
