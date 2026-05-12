@@ -12,34 +12,59 @@ const {
     addMealToDiet,
     removeMealFromDiet,
     updateMealInDiet,
-    getNutritionistCustomers // 1. <-- ADDED IMPORT HERE
+    addExerciseToDiet,
+    updateExerciseInDiet,
+    removeExerciseFromDiet,
+    getNutritionistCustomers,
+    getClientDashboardPeek  // ← NEW
 } = require('../controller/dietPlanController')
 
 router.use(authToken)
 
-// 2. <-- ADDED NEW ROUTE HERE (Must be above /:id routes!)
-// We use nutriValidation to ensure only nutritionists can fetch their clients
+// ─────────────────────────────────────────────────────────────────────────────
+// NUTRITIONIST SPECIAL ROUTES
+// Must be defined BEFORE /:id routes to avoid route collision
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /plan/my-customers — list of clients with their diet plan summary
 router.get('/my-customers', nutriValidation, getNutritionistCustomers);
 
+// GET /plan/client-peek/:clientUserId?days=30 — read a client's full dashboard data
+// NOTE: This is also registered in app.js under /nutrlink/api/dashboard/client-peek/:clientId
+// Keeping it here too so it's co-located with the diet plan logic.
+router.get('/client-peek/:clientUserId', nutriValidation, getClientDashboardPeek);
 
-// General Diet Routes
+// ─────────────────────────────────────────────────────────────────────────────
+// DIET PLAN CRUD
+// ─────────────────────────────────────────────────────────────────────────────
+
 router.route('/')
-    .get(getDiets) // Both roles can access this
+    .get(getDiets)                      // Both roles
     .post(nutriValidation, createDiet); // Nutritionist only
 
-// Specific Diet Routes
 router.route('/:id')
-    .put(nutriValidation, updateDiet) // Nutritionist only
-    .delete(nutriValidation, deleteDiet); // Nutritionist only
+    .put(nutriValidation, updateDiet)       // Nutritionist only
+    .delete(nutriValidation, deleteDiet);   // Nutritionist only
 
-router.post('/:id/meals', nutriValidation, addMealToDiet)
+// ─────────────────────────────────────────────────────────────────────────────
+// MEALS
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post('/:id/meals', nutriValidation, addMealToDiet);
 router.delete('/:id/meals/:mealId', nutriValidation, removeMealFromDiet);
 
-
-// 1. Specific path for the Customer to toggle completion
+// Customer toggles meal completion
 router.patch('/:dietId/meals/:mealId/status', cusValidation, markMealAsDone);
 
-// 2. Base path for the Nutritionist to edit meal details
-router.patch('/:dietId/meals/:mealId', nutriValidation, updateMealInDiet); 
+// Nutritionist edits meal details (must be BELOW the /status route)
+router.patch('/:dietId/meals/:mealId', nutriValidation, updateMealInDiet);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXERCISES  ← NEW
+// ─────────────────────────────────────────────────────────────────────────────
+
+router.post('/:id/exercises', nutriValidation, addExerciseToDiet);
+router.patch('/:dietId/exercises/:exerciseId', nutriValidation, updateExerciseInDiet);
+router.delete('/:id/exercises/:exerciseId', nutriValidation, removeExerciseFromDiet);
 
 module.exports = router

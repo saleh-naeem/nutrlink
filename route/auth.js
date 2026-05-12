@@ -17,7 +17,6 @@ const upload = multer({
         }
     },
 });
-
 // --- ROUTES ---
 
 // POST /api/auth/register

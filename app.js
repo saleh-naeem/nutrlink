@@ -164,6 +164,7 @@ app.use('/nutrlink/api/plan', require('./route/dietPlan'))
 app.use('/nutrlink/api/AI', require('./route/ai'));
 
 app.use('/nutrlink/api/dashboard', require('./route/dashboard'))
+app.use('/nutrlink/api/cdashboard', require('./route/cdashboard'));
 
 app.use('/nutrlink/api/reviews', require('./route/review'))
 app.use('/nutrlink/api/calculator', require('./route/calculator'))
