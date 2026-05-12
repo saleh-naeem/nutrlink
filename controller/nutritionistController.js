@@ -81,39 +81,63 @@ const getAllNutritionist = asyncHandler(async (req, res) => {
     nutritionists
   })
 })
-
 const getFilteredCards = asyncHandler(async (req, res) => {
-  const limit = parseInt(req.query.limit) || 0;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 5;
+  const skip = (page - 1) * limit;
 
-  const { specialization, languages, maxPrice, minRating, yearsOfExperience, sortBy } = req.query
-  let queryFilter = {}
+  const { specialization, languages, maxPrice, minRating, yearsOfExperience, sortBy } = req.query;
 
-  if (specialization) queryFilter.specialization = { $in: Array.isArray(specialization) ? specialization : [specialization] }
-  if (languages) queryFilter.languages = { $in: Array.isArray(languages) ? languages : [languages] }
-  if (maxPrice) queryFilter.price = { $lte: parseFloat(maxPrice) }
-  if (minRating) queryFilter.rating = { $gte: parseFloat(minRating) }
-  if (yearsOfExperience) queryFilter.yearsOfExperience = { $gte: parseInt(yearsOfExperience) }
+  let queryFilter = {};
 
+  if (specialization) {
+    queryFilter.specialization = {
+      $in: Array.isArray(specialization) ? specialization : [specialization]
+    };
+  }
+
+  if (languages) {
+    queryFilter.languages = {
+      $in: Array.isArray(languages) ? languages : [languages]
+    };
+  }
+
+  if (maxPrice) queryFilter.price = { $lte: parseFloat(maxPrice) };
+  if (minRating) queryFilter.rating = { $gte: parseFloat(minRating) };
+  if (yearsOfExperience) queryFilter.yearsOfExperience = { $gte: parseInt(yearsOfExperience) };
 
   const sortMap = {
-    'price': { price: 1 },
-    'reviewCount': { reviewCount: -1 }
+    price: { price: 1 },
+    reviewCount: { reviewCount: -1 },
+    rating: { rating: -1 }
   };
 
   const sortOptions = sortMap[sortBy] || { rating: -1 };
 
-  // 1. Find all unique nutritionist IDs that have at least one 'available' slot
-  const availableNutritionistIds = await Appointment.find({ status: 'available' }).distinct('nutritionistId');
+  const availableNutritionistIds = await Appointment.find({
+    status: "available"
+  }).distinct("nutritionistId");
+
   queryFilter.user = { $in: availableNutritionistIds };
 
-  const cards = await Nutritionist.find(queryFilter)
-    .populate('user', ['username', 'profilePic'])
-    .select('specialization cardBio rating reviewCount price languages yearsOfExperience')
-    .sort(sortOptions)
-    .limit(limit)
+  const total = await Nutritionist.countDocuments(queryFilter);
 
-  res.json({ count: cards.length, cards })
-})
+  const cards = await Nutritionist.find(queryFilter)
+    .populate("user", ["username", "profilePic"])
+    .select("specialization cardBio rating reviewCount price languages yearsOfExperience")
+    .sort(sortOptions)
+    .skip(skip)
+    .limit(limit);
+
+  res.json({
+    count: cards.length,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+    cards
+  });
+});
 
 const getRecommendedForUser = asyncHandler(async (req, res) => {
   const customer = await Customer.findOne({ user: req.user.id })
