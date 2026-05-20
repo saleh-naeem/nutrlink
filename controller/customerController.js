@@ -61,7 +61,7 @@ const getProfile = asyncHandler(async (req, res) => {
 });
 
 const getProfileById = asyncHandler(async (req, res) => {
-  const profile = await Customer.findOne({ user: req.user.id }).populate('user', ['username', 'email', 'profilePic']);
+  const profile = await Customer.findOne({ user: req.params.id }).populate('user', ['username', 'email', 'profilePic']);
 
   if (!profile) {
     res.status(404);
