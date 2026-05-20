@@ -43,5 +43,5 @@ router.get('/:nutritionistId', getAvailableSlots)
 // ADMIN ROUTE
 router.get('/admin/all', authToken, isadmin, getAllAppointments);
 
-
+// test git hub action
 module.exports = router;
