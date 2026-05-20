@@ -8,6 +8,7 @@ const Conversation = require('./model/Conversation');
 const Message = require('./model/Message');
 const { initSocket, getIO } = require('./socketInstance');
 const io = initSocket(server);
+const reportRoutes = require('./route/report');
 
 // Export for use in controllers
 module.exports = { io: getIO, server };
@@ -149,6 +150,7 @@ app.use('/nutrlink/api/auth', require('./route/auth'));
 
 // Admin Routes (approve, reject, pending)
 app.use('/nutrlink/api/admin', require('./route/admin'));
+app.use('/nutrlink/api/reports', require('./route/report'));
 
 app.use('/nutrlink/api/customer/profile', require('./route/customer'));
 
