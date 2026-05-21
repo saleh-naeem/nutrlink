@@ -4,7 +4,6 @@ const asyncHandler=require('express-async-handler')
 const Chat= require('../model/Ai')
 const OpenAI =require( "openai");
 const Customer=require('../model/Customer')
-const authToken=require('../middleware/verifyToken')
 const client = new OpenAI({
     apiKey:process.env.OPENAI_API_KEY
 });
