@@ -26,7 +26,7 @@ const uploadProfilePic = (buffer) => {
 
 
 const createProfile = asyncHandler(async (req, res) => {
-  const { age, gender, height, currentWeight, targetWeight, allergies } = req.body;
+  const { age, gender, height, currentWeight, targetWeight, allergies, primaryGoal } = req.body;
 
   const existingProfile = await Customer.findOne({ user: req.user.id })
   if (existingProfile) {
@@ -39,9 +39,11 @@ const createProfile = asyncHandler(async (req, res) => {
     age,
     gender,
     height,
+    startingWeight: currentWeight,
     currentWeight,
     targetWeight,
-    allergies
+    allergies,
+    primaryGoal,
   });
 
   res.status(201).json(profile)
@@ -61,15 +63,21 @@ const getProfile = asyncHandler(async (req, res) => {
 });
 
 const getProfileById = asyncHandler(async (req, res) => {
-  const profile = await Customer.findOne({ user: req.params.id }).populate('user', ['username', 'email', 'profilePic']);
+  // Use $or to check if the ID is the User ID OR the Profile ID
+  const profile = await Customer.findOne({
+    $or: [
+      { user: req.params.id }, // Check if it's a User ID
+      { _id: req.params.id }   // Check if it's a Customer ID
+    ]
+  }).populate('user', ['username', 'email', 'profilePic']);
 
   if (!profile) {
     res.status(404);
-    throw new Error('Profile not found');
+    throw new Error('Profile not found in database');
   }
 
   res.json(profile);
-})
+});
 
 const updateProfile = asyncHandler(async (req, res) => {
   // Find the user's profile and update it with the new data
