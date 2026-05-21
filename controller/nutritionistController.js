@@ -1,18 +1,16 @@
-const asyncHandler = require('express-async-handler')
+const asyncHandler = require('express-async-handler');
+const mongoose = require('mongoose'); // 🟢 ADDED: Required to look up the User model dynamically
 const Nutritionist = require('../model/Nutritionist');
 const Appointment = require('../model/Appointment');
-const Customer = require('../model/Customer')
-
+const Customer = require('../model/Customer');
 
 const createProfile = asyncHandler(async (req, res) => {
   const { specialization, bio, yearsOfExperience, clientServed, price, languages } = req.body;
 
-
-
-  const existingProfile = await Nutritionist.findOne({ user: req.user.id })
+  const existingProfile = await Nutritionist.findOne({ user: req.user.id });
   if (existingProfile) {
-    res.status(400)
-    throw new Error('Profile already exists for this user')
+    res.status(400);
+    throw new Error('Profile already exists for this user');
   }
 
   const profile = await Nutritionist.create({
@@ -26,24 +24,13 @@ const createProfile = asyncHandler(async (req, res) => {
     languages
   });
 
-  res.status(201).json(profile)
+  res.status(201).json(profile);
 });
 
 const getProfile = asyncHandler(async (req, res) => {
   const profile = await Nutritionist.findOne({ user: req.user.id })
     .select('user specialization bio yearsOfExperience clientServed rating reviewCount languages price ')
-    .populate('user', ['username', 'email', 'profilePic'])
-
-  if (!profile) {
-    res.status(404)
-    throw new Error('Profile not found')
-  }
-
-  res.json(profile)
-});
-
-const getProfileById = asyncHandler(async (req, res) => {
-  const profile = await Nutritionist.findOne({ user: req.params.userId }).populate('user', ['username', 'email', 'profilePic'])
+    .populate('user', ['username', 'email', 'profilePic']);
 
   if (!profile) {
     res.status(404);
@@ -51,7 +38,18 @@ const getProfileById = asyncHandler(async (req, res) => {
   }
 
   res.json(profile);
-})
+});
+
+const getProfileById = asyncHandler(async (req, res) => {
+  const profile = await Nutritionist.findOne({ user: req.params.userId }).populate('user', ['username', 'email', 'profilePic']);
+
+  if (!profile) {
+    res.status(404);
+    throw new Error('Profile not found');
+  }
+
+  res.json(profile);
+});
 
 const updateProfile = asyncHandler(async (req, res) => {
   const updatedProfile = await Nutritionist.findOneAndUpdate(
@@ -61,32 +59,34 @@ const updateProfile = asyncHandler(async (req, res) => {
   );
 
   if (!updatedProfile) {
-    res.status(404)
-    throw new Error('Profile not found')
+    res.status(404);
+    throw new Error('Profile not found');
   }
 
-  res.json(updatedProfile)
-})
+  res.json(updatedProfile);
+});
 
 const getAllNutritionist = asyncHandler(async (req, res) => {
-  const nutritionists = await Nutritionist.find().populate('user', ['username', 'email'])
+  const nutritionists = await Nutritionist.find().populate('user', ['username', 'email']);
 
   if (!nutritionists || nutritionists.length === 0) {
-    res.status(404)
-    throw new Error('No nutritionists found')
+    res.status(404);
+    throw new Error('No nutritionists found');
   }
 
   res.json({
     count: nutritionists.length,
     nutritionists
-  })
-})
+  });
+});
+
 const getFilteredCards = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 5;
   const skip = (page - 1) * limit;
 
-  const { specialization, languages, maxPrice, minRating, yearsOfExperience, sortBy } = req.query;
+  // 🟢 CHANGED: Extracted 'search' from req.query
+  const { specialization, languages, maxPrice, minRating, yearsOfExperience, sortBy, search } = req.query;
 
   let queryFilter = {};
 
@@ -118,7 +118,27 @@ const getFilteredCards = asyncHandler(async (req, res) => {
     status: "available"
   }).distinct("nutritionistId");
 
-  queryFilter.user = { $in: availableNutritionistIds };
+  // 🟢 CHANGED: Process relationship lookup across collections if search input is active
+  if (search && search.trim() !== "") {
+    const User = mongoose.model('User');
+    
+    // Find all users matching the search term inside their username
+    const matchingUsers = await User.find({
+      username: { $regex: search, $options: "i" } // 'i' flag ensures case insensitivity
+    }).distinct("_id");
+
+    // Convert ObjectIds to strings to accurately calculate array intersection
+    const availableStrings = availableNutritionistIds.map(id => id.toString());
+    const matchedStrings = matchingUsers.map(id => id.toString());
+    
+    // Intersect: Only keep the user IDs that have available appointments AND match the search name
+    const validUserIds = matchedStrings.filter(id => availableStrings.includes(id));
+
+    queryFilter.user = { $in: validUserIds };
+  } else {
+    // Default fallback when search is completely empty
+    queryFilter.user = { $in: availableNutritionistIds };
+  }
 
   const total = await Nutritionist.countDocuments(queryFilter);
 
@@ -140,13 +160,13 @@ const getFilteredCards = asyncHandler(async (req, res) => {
 });
 
 const getRecommendedForUser = asyncHandler(async (req, res) => {
-  const customer = await Customer.findOne({ user: req.user.id })
+  const customer = await Customer.findOne({ user: req.user.id });
 
   if (!customer || !customer.primaryGoal)
-    return res.json([])
+    return res.json([]);
 
-  const primaryGoal = customer.primaryGoal
-  const userLanguages = customer.languages || []
+  const primaryGoal = customer.primaryGoal;
+  const userLanguages = customer.languages || [];
 
   const availableNutritionistIds = await Appointment.find({ status: 'available' }).distinct('nutritionistId');
 
@@ -178,9 +198,14 @@ const getRecommendedForUser = asyncHandler(async (req, res) => {
   }
 
   res.json(recommended);
-})
+});
 
-
-
-
-module.exports = { createProfile, getProfile, getProfileById, updateProfile, getAllNutritionist, getFilteredCards, getRecommendedForUser }
+module.exports = { 
+  createProfile, 
+  getProfile, 
+  getProfileById, 
+  updateProfile, 
+  getAllNutritionist, 
+  getFilteredCards, 
+  getRecommendedForUser 
+};
