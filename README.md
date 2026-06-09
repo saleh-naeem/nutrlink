@@ -1,9 +1,9 @@
 # NutriLink Backend API 🚀
 
-The complete backend REST API for the NutriLink platform - a comprehensive nutrition and wellness application connecting clients with certified nutritionists through personalized consultations, AI-powered guidance, and progress tracking.
+The complete backend REST API and real-time server for the NutriLink platform - a comprehensive nutrition and wellness application connecting clients with certified nutritionists through personalized consultations, AI-powered guidance, real-time chat, video calls, reports, reviews, and progress tracking.
 
 ![Node.js](https://img.shields.io/badge/Node.js-18+-green)
-![Express](https://img.shields.io/badge/Express-4.18+-blue)
+![Express](https://img.shields.io/badge/Express-5.2+-blue)
 ![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-brightgreen)
 ![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4.1-orange)
 ## 📋 Table of Contents
@@ -15,6 +15,10 @@ The complete backend REST API for the NutriLink platform - a comprehensive nutri
 - [Getting Started](#getting-started)
 - [Environment Variables](#environment-variables)
 - [API Documentation](#api-documentation)
+- [Real-Time Chat Endpoints](#real-time-chat-endpoints)
+- [Video Call Socket Events](#video-call-socket-events)
+- [Report Endpoints](#report-endpoints)
+- [Review Endpoints](#review-endpoints)
 - [Database Models](#database-models)
 - [Authentication & Authorization](#authentication--authorization)
 - [Middleware](#middleware)
@@ -28,6 +32,8 @@ NutriLink Backend follows a **RESTful API architecture** with:
 - **JWT Authentication**: Stateless authentication with role-based access control
 - **Cloud Storage**: Cloudinary for image hosting (credentials, profile pictures)
 - **AI Integration**: OpenAI GPT-4.1-mini for intelligent nutrition guidance
+- **Real-Time Layer**: Socket.IO for chat notifications, online status, and WebRTC signaling
+- **Moderation Layer**: Report and review workflows for safer customer-nutritionist interactions
 
 ### System Flow
 ```
@@ -50,7 +56,7 @@ Response (JSON)
 
 ### Core
 - **Node.js** (v18+): JavaScript runtime
-- **Express.js** (v4.18+): Web framework
+- **Express.js** (v5.2+): Web framework
 - **MongoDB Atlas**: Cloud database
 - **Mongoose**: ODM for MongoDB
 
@@ -67,9 +73,14 @@ Response (JSON)
 ### AI & External Services
 - **OpenAI API**: GPT-4.1-mini for nutrition chatbot
 
+### Real-Time Communication
+- **Socket.IO**: Live chat, unread counters, online presence, and video-call signaling
+- **WebRTC Signaling**: Offer, answer, and ICE candidate exchange for browser video calls
+
 ### Utilities
 - **dotenv**: Environment variable management
 - **express-async-handler**: Async error handling wrapper
+- **node-cron**: Automated cleanup for past appointment slots
 
 ## ✨ Features
 
@@ -84,6 +95,7 @@ Response (JSON)
 ### 👥 User Management
 - **Customer Profiles**: Health metrics, goals, allergies, weight tracking
 - **Nutritionist Profiles**: Specializations, experience, bio, pricing, languages
+- **Profile Pictures**: Cloudinary-backed avatar upload for user profiles
 - **Admin Panel**: User approval, credential verification, platform oversight
 
 ### 📅 Appointment System
@@ -92,6 +104,8 @@ Response (JSON)
 - **Status Tracking**: pending → booked → completed/cancelled
 - **History**: View past appointments
 - **Rescheduling**: Modify appointment times
+- **Video Eligibility**: Only booked appointment participants can enter a video room
+- **Automatic Cleanup**: Daily cron job cancels expired available/booked appointment slots
 
 ### 🥗 Diet Plan Management
 - **Custom Plans**: Nutritionists create personalized meal plans
@@ -106,11 +120,26 @@ Response (JSON)
 - **Multi-Chat Support**: Create and manage multiple conversation threads
 - **Markdown Responses**: Rich formatted replies
 
+### Real-Time Chat & Video
+- **User Conversations**: One-to-one customer/nutritionist messaging with conversation history
+- **Unread Counts**: Tracks unseen messages and pushes badge updates through Socket.IO
+- **Online Presence**: Emits online users and stores last seen timestamps on disconnect
+- **Typing & Delete Events**: Real-time typing indicators and message delete propagation
+- **Video Call Signaling**: Socket.IO rooms exchange WebRTC offers, answers, and ICE candidates
+- **Room Safety**: Validates booked appointment status, participant identity, duplicate joins, and 2-person room limits
+
+### Reports & Reviews
+- **Safety Reports**: Customers can report nutritionists with reason, description, and status
+- **Admin Moderation**: Admins can list reports, update status, resolve cases, or delete reports
+- **Nutritionist Reviews**: Customers can add ratings/comments after completed care
+- **Rating Aggregation**: Nutritionist rating and review count update after each review
+
 ### 📊 Progress Tracking
 - **Daily Logs**: Water intake, exercise minutes, weight
 - **Historical Data**: View logs by day, week, or month
 - **Weight Journey**: Track progress from start to target
 - **Visual Summaries**: Dashboard with charts and stats
+- **Nutritionist Client Peek**: Approved nutritionists can view progress summaries for clients they have appointments with
 
 ### 📈 Analytics Dashboard
 - **Nutritionist Stats**: Total clients, appointments, earnings
@@ -137,6 +166,9 @@ nutrilink-backend/
 │   ├── appointmentController.js  # Slot & booking logic
 │   ├── dietPlanController.js     # Meal plan CRUD
 │   ├── dashboardController.js    # Stats & analytics
+│   ├── chatController.js         # Real-time conversation logic
+│   ├── reportController.js       # Safety report moderation
+│   ├── reviewController.js       # Nutritionist reviews and ratings
 │   └── calculatorController.js   # BMR/TDEE calculations
 │
 ├── middleware/
@@ -153,6 +185,10 @@ nutrilink-backend/
 │   ├── Appointment.js        # Appointment bookings
 │   ├── DietPlan.js           # Meal plans
 │   ├── Ai.js                 # Chat conversations
+│   ├── Conversation.js       # User-to-user chat threads
+│   ├── Message.js            # Chat messages and seen state
+│   ├── Report.js             # User safety reports
+│   ├── Review.js             # Nutritionist reviews
 │   ├── Progress.js           # Daily logs
 │   └── Goal.js               # Customer goals
 │
@@ -164,14 +200,19 @@ nutrilink-backend/
 │   ├── appointment.js        # Appointment system
 │   ├── dietPlan.js           # Diet plan routes
 │   ├── ai.js                 # AI chatbot
+│   ├── chat.js               # User-to-user chat
+│   ├── report.js             # Report moderation
+│   ├── review.js             # Nutritionist reviews
 │   ├── progress.js           # Progress tracking
 │   ├── dashboard.js          # Analytics
+│   ├── cdashboard.js         # Nutritionist client progress peek
 │   ├── calculator.js         # Calorie calculator
 │   └── goal.js               # Goal management
 │
 ├── .env                      # Environment variables 
 ├── .gitignore                # Git ignore file
 ├── app.js                    # Express app setup
+├── socketInstance.js         # Shared Socket.IO instance
 ├── package.json              # Dependencies
 └── README.md                 # This file
 ```
@@ -689,6 +730,106 @@ Content-Type: application/json
 
 ---
 
+## Real-Time Chat Endpoints
+
+### Access Conversation
+```http
+POST /chat
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "userId": "recipient_user_id"
+}
+```
+
+Returns an existing conversation or a temporary "ghost" conversation for first contact.
+
+---
+
+### Send Message
+```http
+POST /chat/send
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "recipientId": "recipient_user_id",
+  "conversationId": "conversation_id",
+  "text": "Hello, are you available?"
+}
+```
+
+---
+
+### Get Conversations
+```http
+GET /chat/conversations
+Authorization: Bearer <token>
+```
+
+Returns conversations with populated participants, latest message data, and unread counts.
+
+---
+
+### Get Messages
+```http
+GET /chat/messages/:conversationId
+Authorization: Bearer <token>
+```
+
+Also marks received unread messages as seen and emits updated unread-count events.
+
+---
+
+### Delete Message
+```http
+DELETE /chat/messages/:messageId
+Authorization: Bearer <token>
+```
+
+Only the sender can delete their own message.
+
+---
+
+## Video Call Socket Events
+
+Video calls use Socket.IO for WebRTC signaling. A participant can join only when:
+- the appointment exists
+- the appointment status is `booked`
+- the user is the appointment customer or nutritionist
+- the room has fewer than two participants
+
+```javascript
+// Client -> Server
+setup(user)
+join-room({ roomId, userId, username })
+offer({ to, offer })
+answer({ to, answer })
+ice-candidate({ to, candidate })
+toggle-mic({ roomId, enabled })
+toggle-camera({ roomId, enabled })
+leave-room({ roomId })
+
+// Server -> Client
+room-users({ participants })
+user-joined({ socketId, username, userId })
+call-ready()
+offer({ from, offer })
+answer({ from, answer })
+ice-candidate({ from, candidate })
+user-left({ socketId })
+call-ended()
+```
+
+---
+
 ## 🥗 Diet Plan Endpoints
 
 ### Create Diet Plan (Nutritionist)
@@ -932,6 +1073,93 @@ Authorization: Bearer <token>
 DELETE /AI/chat/:chatId
 Authorization: Bearer <token>
 ```
+
+---
+
+## Report Endpoints
+
+### Create Report
+```http
+POST /reports
+Authorization: Bearer <token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "reporterId": "customer_user_id",
+  "reporterModel": "Customer",
+  "reportedUserId": "nutritionist_user_id",
+  "reportedUserModel": "Nutritionist",
+  "reason": "Unprofessional conduct",
+  "description": "Detailed report description"
+}
+```
+
+---
+
+### Get Reports (Admin)
+```http
+GET /reports
+Authorization: Bearer <admin_token>
+```
+
+Returns reports sorted by newest first, with related customer and nutritionist profile data.
+
+---
+
+### Update Report Status (Admin)
+```http
+PUT /reports/:id
+Authorization: Bearer <admin_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "status": "pending | reviewed | resolved"
+}
+```
+
+---
+
+### Delete Report (Admin)
+```http
+DELETE /reports/:id
+Authorization: Bearer <admin_token>
+```
+
+---
+
+## Review Endpoints
+
+### Get Nutritionist Reviews
+```http
+GET /reviews/:nutritionistId?page=1&limit=10
+```
+
+Returns paginated reviews with populated customer user information.
+
+---
+
+### Add Review
+```http
+POST /reviews/:nutritionistId
+Authorization: Bearer <customer_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "rating": 5,
+  "comment": "Helpful and professional consultation."
+}
+```
+
+Customers can only review once, and nutritionist rating statistics are recalculated after review creation.
 
 ---
 
@@ -1234,6 +1462,16 @@ Authorization: Bearer <nutritionist_token>
 
 ---
 
+### Get Client Progress Peek
+```http
+GET /cdashboard/client-peek/:clientId?days=30
+Authorization: Bearer <nutritionist_token>
+```
+
+Returns customer profile data, recent logs, today's water/exercise/weight values, goal summary, and weight progress for a client who has an appointment relationship with the nutritionist.
+
+---
+
 ## 📊 Database Models
 
 ### User Model
@@ -1358,6 +1596,64 @@ Authorization: Bearer <nutritionist_token>
       timestamp: Date
     }
   ],
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Conversation Model (User Chat)
+```javascript
+{
+  _id: ObjectId,
+  participants: [ObjectId (ref: 'User')],
+  lastMessage: {
+    text: String,
+    sender: ObjectId (ref: 'User'),
+    seen: Boolean,
+    createdAt: Date
+  },
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Message Model (User Chat)
+```javascript
+{
+  _id: ObjectId,
+  conversationId: ObjectId (ref: 'Conversation'),
+  sender: ObjectId (ref: 'User'),
+  text: String,
+  seen: Boolean,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Report Model
+```javascript
+{
+  _id: ObjectId,
+  reporterId: ObjectId,
+  reporterModel: Enum ["Customer", "Nutritionist"],
+  reportedUserId: ObjectId,
+  reportedUserModel: Enum ["Customer", "Nutritionist"],
+  reason: String,
+  description: String,
+  status: Enum ["pending", "reviewed", "resolved"],
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Review Model
+```javascript
+{
+  _id: ObjectId,
+  nutritionistId: ObjectId (ref: 'Nutritionist'),
+  customerId: ObjectId (customer profile id),
+  rating: Number (1-5),
+  comment: String,
   createdAt: Date,
   updatedAt: Date
 }
@@ -1551,7 +1847,29 @@ NutriLink API
 │   ├── Create Slot
 │   ├── Book Appointment
 │   ├── Get Schedule
-│   └── Mark Completed
+│   ├── Mark Completed
+│   └── Reschedule Appointment
+├── User Chat
+│   ├── Access Conversation
+│   ├── Send Message
+│   ├── Get Conversations
+│   └── Get Messages
+├── Video Call Socket Events
+│   ├── Join Room
+│   ├── Offer / Answer
+│   └── ICE Candidate
+├── Reports
+│   ├── Create Report
+│   ├── Get Reports
+│   ├── Update Status
+│   └── Delete Report
+├── Reviews
+│   ├── Add Review
+│   └── Get Reviews
+├── Progress
+│   ├── Log Daily Progress
+│   ├── Get Summary
+│   └── Client Peek
 └── AI Chat
     ├── Create Chat
     ├── Send Message
@@ -1567,15 +1885,20 @@ NutriLink API
 ```json
 {
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
-    "test": "jest",
-    "lint": "eslint .",
-    "format": "prettier --write ."
+    "test": "echo \"Error: no test specified\" && exit 1"
   }
 }
 ```
 
+Run locally with:
+```bash
+node app.js
+```
+
+For development with auto-restart:
+```bash
+npx nodemon app.js
+```
+
 ---
--
 
